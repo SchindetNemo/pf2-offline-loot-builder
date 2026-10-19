@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PF2e Loot Builder</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <h1>Loot Builder</h1>
+</header>
+
+<section class="filters">
+  <div id="filterBar" class="filter-bar"></div>
+  <div class="filter-extra">
+    <span id="rangeControls" class="ranges"></span>
+    <button id="ownedBtn" class="ghost" title="Exclude items your players already own from random loot">Owned items: <span id="ownedCount">0</span></button>
+    <button id="clearFilters" class="ghost">Clear filters</button>
+    <span id="matchCount" class="muted"></span>
+  </div>
+</section>
+
+<main class="layout">
+  <aside class="encounter">
+    <div class="panel party-panel">
+      <div class="profile">
+        <label><span>Profile</span><select id="profile"></select></label>
+        <button id="profileNew" class="ghost" title="New campaign profile">New</button>
+        <button id="profileDel" class="ghost" title="Delete this profile and its imported party data and saved loot">Delete</button>
+      </div>
+      <div class="party">
+        <label><span>Party level</span><select id="partyLevel"></select></label>
+        <label><span>Party size</span><select id="partySize"></select></label>
+      </div>
+      <div class="level-range">
+        <label class="all-levels" title="Random loot only picks items inside the window below. Untick to ignore the party level."><input type="checkbox" id="useWindow"> Limit random to</label>
+        <select id="relMin"></select><span class="to">to</span><select id="relMax"></select>
+      </div>
+      <div class="budget" id="suggested"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Loot</h2>
+        <div class="row-actions">
+          <button id="clearLoot" class="ghost" title="Remove all entries">Clear</button>
+        </div>
+      </div>
+      <div class="gen">
+        <button id="randomBtn" class="primary">Random loot</button>
+        <div class="gen-opts">
+          <label>Amount to add <select id="amount"></select></label>
+          <label class="check"><input type="checkbox" id="unique" checked> No duplicates</label>
+          <label id="kindWrap" hidden>Generate <select id="genKind">
+            <option value="both">Scrolls &amp; wands</option>
+            <option value="scroll">Scrolls</option>
+            <option value="wand">Wands</option>
+          </select></label>
+        </div>
+        <p id="genMsg" class="msg" hidden></p>
+      </div>
+      <div class="gold">
+        <label class="check"><input type="checkbox" id="goldOn"> Add gold</label>
+        <label>of suggested <input type="number" id="goldPct" min="0" max="1000" step="5" list="goldPcts"> %</label>
+        <datalist id="goldPcts"><option value="10"><option value="25"><option value="30"><option value="50"><option value="75"><option value="100"><option value="150"><option value="200"></datalist>
+        <label class="check" title="Scale the suggested currency for parties other than 4 using the table's per-PC value"><input type="checkbox" id="goldPc"> Adjust for party size</label>
+        <label class="check" title="Needs the owned-items import: adds the level's currency, plus what the party is short of the currency it should have by now (or minus a surplus)"><input type="checkbox" id="goldTop"> Adjust to party's coins</label>
+        <label class="check" title="Write the total as platinum + gold"><input type="checkbox" id="goldPp"> Use platinum</label>
+      </div>
+      <ul id="lootList" class="enc-list"></ul>
+      <p id="lootEmpty" class="muted empty">Add items from the table or roll random loot.</p>
+      <div id="totals" class="totals"></div>
+      <div class="saves">
+        <input id="lootName" type="text" placeholder="Loot actor name">
+        <button id="saveBtn">Save</button>
+        <select id="loadSelect"><option value="">Load saved…</option></select>
+        <button id="deleteSave" class="ghost" title="Delete selected save">Delete</button>
+        <button id="macroBtn" class="ghost" title="Foundry VTT script macro that creates this loot actor">Foundry macro</button>
+      </div>
+    </div>
+  </aside>
+
+  <section class="results">
+    <div class="tab-bar">
+      <div id="tabs" class="tabs" role="tablist"></div>
+      <input id="nameSearch" type="search" placeholder="Name contains…" autocomplete="off">
+    </div>
+    <div id="runedPanel" class="runed-panel" hidden>
+      <p class="muted">Builds random runed gear from the mundane base weapons and armor: fundamental runes by level, plus property runes (one per potency bonus).
+        Results use the party level window above and go straight into the loot list; click “Random loot” to roll.</p>
+      <div class="runed-opts">
+        <label>Gear <select id="runedKind"><option value="both">Weapons &amp; armor</option><option value="weapon">Weapons</option><option value="armor">Armor</option></select></label>
+        <label>Base category <select id="runedCat"><option value="">Any</option></select></label>
+        <label>Property runes <select id="runedProps"><option value="auto">Auto (up to potency)</option><option value="0">None</option><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></label>
+      </div>
+      <p class="muted">Only property runes that fit the base (melee, thrown, bludgeoning, light/heavy armor…) are used. Runes limited to metal or non-metal armor and the few restricted-to-trait runes are skipped.</p>
+    </div>
+    <div class="table-wrap" id="tableWrap">
+      <table id="table">
+        <thead id="thead"></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="more"><button id="moreBtn" class="ghost" hidden>Show more</button></div>
+  </section>
+</main>
+
+<dialog id="macroDialog" class="macro-dialog">
+  <div class="panel-head"><h2>Foundry macro</h2><button id="macroClose" class="ghost close" aria-label="Close">×</button></div>
+  <p class="muted">In Foundry: Macro Directory → Create Macro → Type <b>Script</b> → paste → Execute (as GM).
+    Creates a loot actor in Actors &gt; Loot with these items, scrolls, wands and coins, and whispers a summary to the GM.</p>
+  <textarea id="macroText" readonly spellcheck="false"></textarea>
+  <div class="row-actions"><button id="macroCopy" class="primary">Copy</button><button id="macroDownload">Download .js</button><span id="macroMsg" class="muted"></span></div>
+</dialog>
+
+<dialog id="ownedDialog" class="macro-dialog">
+  <div class="panel-head"><h2>Owned items</h2><button id="ownedClose" class="ghost close" aria-label="Close">×</button></div>
+  <p class="muted">1. In Foundry run the macro below as GM: it reads the characters in your Party actor (or an actor folder named “The Party”) and copies a list of their permanent items to the clipboard.
+    2. Paste that list into the box and press Import. Those items are then left out of random loot and marked in the table. Scrolls, wands and consumables are ignored.</p>
+  <textarea id="ownedMacro" readonly spellcheck="false" rows="8"></textarea>
+  <div class="row-actions"><button id="ownedMacroCopy">Copy macro</button></div>
+  <textarea id="ownedPaste" spellcheck="false" rows="5" placeholder="Paste the list from Foundry here"></textarea>
+  <div class="row-actions"><button id="ownedImport" class="primary">Import</button><button id="ownedClear" class="ghost">Clear list</button><span id="ownedMsg" class="muted"></span></div>
+</dialog>
+
+<div id="drawer" class="drawer" hidden>
+  <div class="drawer-inner">
+    <button id="drawerClose" class="ghost close" aria-label="Close">×</button>
+    <div id="drawerBody"></div>
+  </div>
+</div>
+
+<script src="data/items.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
